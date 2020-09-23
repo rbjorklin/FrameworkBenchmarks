@@ -1,6 +1,7 @@
-(executables
+(executable
  (libraries webmachine lwt cohttp-lwt-unix ptime ptime.clock ptime.clock.os
             caqti caqti-lwt caqti-driver-postgresql ezjsonm )
  (preprocess (pps lwt_ppx))
  (modules tfb)
- (names tfb))
+ (name tfb))
+
