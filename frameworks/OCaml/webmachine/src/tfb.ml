@@ -1,3 +1,8 @@
+(* https://github.com/ocsigen/lwt/blob/d7fabaa077389a0035254e66459a6a366c57576e/src/core/lwt_result.ml#L88-L91 *)
+(* >>= is Lwt.Infix equivalent to Lwt.bind:
+   https://ocsigen.org/lwt/5.2.0/api/Lwt#3_Callbacks *)
+(* >|= is Lwt.Infix equivalent to Lwt.map:
+   https://ocsigen.org/lwt/5.2.0/api/Lwt#2_Convenience *)
 open Lwt.Infix
 open Cohttp_lwt_unix
 
