@@ -15,14 +15,11 @@ module World = struct
   type t = { id : int; randomNumber : int }
 end
 
-(* https://github.com/mirage/ocaml-cohttp/issues/328#issuecomment-222583580 *)
-let _ = Lwt_io.set_default_buffer_size 0x10000
-
 let pool =
   let connection_url =
-    "postgresql://benchmarkdbuser:benchmarkdbpass@tfb-database:5432/hello_world?connect_timeout=3"
+    "postgresql://benchmarkdbuser:benchmarkdbpass@tfb-database:5432/hello_world?connect_timeout=15"
   in
-  match Caqti_lwt.connect_pool ~max_size:10 (Uri.of_string connection_url) with
+  match Caqti_lwt.connect_pool ~max_size:20 (Uri.of_string connection_url) with
   | Ok pool -> pool
   | Error err -> failwith (Caqti_error.show err)
 
@@ -99,7 +96,6 @@ class queries =
     method private id rd =
       try
         let _id = int_of_string (Wm.Rd.lookup_path_info_exn "id" rd) in
-        (* if _id > 500 then 500 else _id *)
         match _id with
         | x when x < 1 -> 1
         | x when x > 500 -> 500
@@ -173,4 +169,7 @@ let main () =
   Server.create ~mode:(`TCP (`Port port)) config >|= fun () ->
   Printf.eprintf "hello_lwt: listening on 0.0.0.0:%d%!" port
 
-let () = Lwt_main.run (main ())
+let () =
+  (* https://github.com/mirage/ocaml-cohttp/issues/328#issuecomment-222583580 *)
+  Lwt_io.set_default_buffer_size 0x10000;
+  Lwt_main.run (main ())
