@@ -26,14 +26,20 @@ let pool =
   in
   match Caqti_lwt.connect_pool ~max_size:20 (Uri.of_string connection_url) with
   | Ok pool -> pool
-  | Error err -> failwith (Caqti_error.show err)
+  | Error err ->
+      Printf.eprintf "%s" (Caqti_error.show err);
+      flush stderr;
+      failwith (Caqti_error.show err)
 
 type error = Database_error of string
 
 let or_error m =
   match%lwt m with
   | Ok a -> Ok a |> Lwt.return
-  | Error e -> Error (Database_error (Caqti_error.show e)) |> Lwt.return
+  | Error err ->
+      Printf.eprintf "%s" (Caqti_error.show err);
+      flush stderr;
+      Error (Database_error (Caqti_error.show err)) |> Lwt.return
 
 let select_random =
   Caqti_request.find Caqti_type.int
@@ -119,6 +125,8 @@ class queries =
     method private read_query rd =
       let query_ids = List.init (self#id rd) (fun _ -> Random.int 10000) in
       let read_query' x (module C : Caqti_lwt.CONNECTION) =
+        Printf.eprintf "%d\n" x;
+        flush stderr;
         C.find select_random x
       in
       let response =
@@ -162,7 +170,19 @@ let main () =
     (Wm.dispatch' routes ~body ~request >|= function
      | None -> (`Not_found, Header.init (), `String "Not found", [])
      | Some result -> result)
-    >>= fun (status, headers, body, _) ->
+    >>= fun (status, headers, body, path) ->
+    let path =
+      match Sys.getenv "BENCHMARK_ENV" with
+      | "local" -> Printf.sprintf " - %s" (String.concat ", " path)
+      | _ -> ""
+      | exception Not_found -> ""
+    in
+    Printf.eprintf "%d - %s %s%s\n"
+      (Code.code_of_status status)
+      (Code.string_of_method (Request.meth request))
+      (Uri.path (Request.uri request))
+      path;
+    flush stderr;
     let headers = Header.add headers "Server" "webmachine" in
     let headers =
       Header.add headers "Date" (Ptime.to_rfc3339 (Ptime_clock.now ()))
@@ -176,5 +196,7 @@ let main () =
 
 let () =
   (* https://github.com/mirage/ocaml-cohttp/issues/328#issuecomment-222583580 *)
+  Printf.eprintf "hej";
+  flush stderr;
   Lwt_io.set_default_buffer_size 0x10000;
   Lwt_main.run (main ())
