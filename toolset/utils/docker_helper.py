@@ -318,10 +318,6 @@ class DockerHelper:
         Sets up a container for the given database and port, and starts said docker
         container.
         '''
-        def watch_container(docker_container):
-            for line in docker_container.logs(stream=True):
-                print(line)
-
         image_name = "techempower/%s:latest" % database
         log_prefix = image_name + ": "
 
@@ -342,12 +338,6 @@ class DockerHelper:
             sysctls=sysctl,
             remove=True,
             log_config={'type': None})
-
-        watch_thread = Thread(
-            target=watch_container,
-            args=[container])
-        watch_thread.daemon = True
-        watch_thread.start()
 
         # Sleep until the database accepts connections
         slept = 0

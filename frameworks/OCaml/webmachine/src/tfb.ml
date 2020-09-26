@@ -124,8 +124,6 @@ class queries =
     method private read_query rd =
       let query_ids = List.init (self#id rd) (fun _ -> Random.int 10000 + 1) in
       let read_query' x (module C : Caqti_lwt.CONNECTION) =
-        Printf.eprintf "%d\n" x;
-        flush stderr;
         C.find select_random x
       in
       let response =
@@ -136,7 +134,7 @@ class queries =
             | Error _ -> failwith "whoops")
           query_ids
       in
-      let%lwt interim = Lwt.all response in
+      let%lwt resolved_response = Lwt.all response in
       let json =
         Ezjsonm.list
           (fun tup ->
@@ -147,7 +145,7 @@ class queries =
                   ("id", `Float (float_of_int id));
                   ("randomNumber", `Float (float_of_int randomNumber));
                 ]))
-          interim
+          resolved_response
       in
       Wm.continue (`String (Ezjsonm.value_to_string ~minify:true json)) rd
   end
@@ -168,19 +166,7 @@ let main () =
     (Wm.dispatch' routes ~body ~request >|= function
      | None -> (`Not_found, Header.init (), `String "Not found", [])
      | Some result -> result)
-    >>= fun (status, headers, body, path) ->
-    let path =
-      match Sys.getenv "BENCHMARK_ENV" with
-      | "local" -> Printf.sprintf " - %s" (String.concat ", " path)
-      | _ -> ""
-      | exception Not_found -> ""
-    in
-    Printf.eprintf "%d - %s %s%s\n"
-      (Code.code_of_status status)
-      (Code.string_of_method (Request.meth request))
-      (Uri.path (Request.uri request))
-      path;
-    flush stderr;
+    >>= fun (status, headers, body, _) ->
     let headers = Header.add headers "Server" "webmachine" in
     let headers =
       Header.add headers "Date" (Ptime.to_rfc3339 (Ptime_clock.now ()))
@@ -194,7 +180,5 @@ let main () =
 
 let () =
   (* https://github.com/mirage/ocaml-cohttp/issues/328#issuecomment-222583580 *)
-  Printf.eprintf "hej";
-  flush stderr;
   Lwt_io.set_default_buffer_size 0x10000;
   Lwt_main.run (main ())
