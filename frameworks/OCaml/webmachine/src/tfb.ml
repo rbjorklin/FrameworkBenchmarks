@@ -151,7 +151,11 @@ class queries =
   end
 
 let main () =
-  let port = 8080 in
+  let port =
+    match Sys.getenv "PORT" with
+    | x -> int_of_string x
+    | exception Not_found -> 8080
+  in
   let routes =
     [
       ("/plaintext", fun () -> new hello);

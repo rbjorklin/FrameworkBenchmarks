@@ -18,4 +18,10 @@ RUN opam install --yes --deps-only ./webmachine-tfb.opam
 
 RUN eval $(opam env) ; dune build --profile release tfb.exe
 
-CMD /webmachine/_build/default/tfb.exe
+# try to keep everything above here in sync with webmachine.dockerfile for more efficent use of docker build cache
+RUN dnf install --assumeyes haproxy
+COPY haproxy.cfg /etc/haproxy/haproxy.cfg
+COPY start-servers.sh ./start-servers.sh
+RUN chmod +x /webmachine/start-servers.sh
+
+CMD /webmachine/start-servers.sh ; /usr/sbin/haproxy -Ws -f /etc/haproxy/haproxy.cfg -p /run/haproxy.pid -q
