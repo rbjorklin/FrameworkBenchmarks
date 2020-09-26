@@ -24,7 +24,7 @@ let pool =
   let connection_url =
     "postgresql://benchmarkdbuser:benchmarkdbpass@tfb-database:5432/hello_world?connect_timeout=15"
   in
-  match Caqti_lwt.connect_pool ~max_size:20 (Uri.of_string connection_url) with
+  match Caqti_lwt.connect_pool ~max_size:10 (Uri.of_string connection_url) with
   | Ok pool -> pool
   | Error err ->
       Printf.eprintf "%s" (Caqti_error.show err);
@@ -44,7 +44,7 @@ let or_error m =
 let select_random =
   Caqti_request.find Caqti_type.int
     Caqti_type.(tup2 int int)
-    "SELECT id, randomNumber FROM World WHERE id = ?"
+    "SELECT id, randomNumber FROM World WHERE id = $1"
 
 class hello =
   object (self)
@@ -81,12 +81,11 @@ class db =
 
     method private read_db rd =
       let read_db' (module C : Caqti_lwt.CONNECTION) =
-        C.find select_random (Random.int 10000)
+        C.find select_random (Random.int 10000 + 1)
       in
-      let ret = Caqti_lwt.Pool.use read_db' pool |> or_error in
       let%lwt id, randomNumber =
-        match%lwt ret with
-        | Ok (x, y) -> (x, y) |> Lwt.return
+        Caqti_lwt.Pool.use read_db' pool |> or_error >|= function
+        | Ok (x, y) -> (x, y)
         | Error _ -> failwith "whoops"
       in
       let json =
@@ -123,7 +122,7 @@ class queries =
     method content_types_accepted rd = Wm.continue [] rd
 
     method private read_query rd =
-      let query_ids = List.init (self#id rd) (fun _ -> Random.int 10000) in
+      let query_ids = List.init (self#id rd) (fun _ -> Random.int 10000 + 1) in
       let read_query' x (module C : Caqti_lwt.CONNECTION) =
         Printf.eprintf "%d\n" x;
         flush stderr;
@@ -132,9 +131,8 @@ class queries =
       let response =
         List.map
           (fun id ->
-            let ret = Caqti_lwt.Pool.use (read_query' id) pool |> or_error in
-            match%lwt ret with
-            | Ok (x, y) -> (x, y) |> Lwt.return
+            Caqti_lwt.Pool.use (read_query' id) pool |> or_error >|= function
+            | Ok (x, y) -> (x, y)
             | Error _ -> failwith "whoops")
           query_ids
       in
